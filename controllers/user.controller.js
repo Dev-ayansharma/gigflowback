@@ -64,12 +64,13 @@ export const loginUser = asynchandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
   const options = {
     httpOnly: true,
-    secure: true, // REQUIRED in production (HTTPS)
+    secure: true,
+    sameSite: "none", // REQUIRED in production (HTTPS)
   };
   return res
     .cookie("token", token, options)
     .status(200)
-    .json(new ApiResponse(200, "login successful", { token, user }));
+    .json(new ApiResponse(200, "login successful", { user }));
 });
 
 export const logoutuser = asynchandler(async (req, res) => {
@@ -84,7 +85,8 @@ export const logoutuser = asynchandler(async (req, res) => {
   );
   const options = {
     httpOnly: true,
-    secure: true, // REQUIRED in production (HTTPS)
+    secure: true,
+    sameSite: "none",
   };
 
   return res
