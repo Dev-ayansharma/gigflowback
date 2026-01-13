@@ -64,7 +64,8 @@ export const loginUser = asynchandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
   const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    Secure: true,
+    SameSite: http.SameSiteNoneMode,
   };
   return res
     .cookie("token", token, options)
@@ -85,6 +86,8 @@ export const logoutuser = asynchandler(async (req, res) => {
   const options = {
     httpOnly: true,
     secure: true,
+
+    SameSite: http.SameSiteNoneMode,
   };
 
   return res
