@@ -30,7 +30,7 @@ Bonus Features
 ✅ User connection tracking for online/offline status
 ✅ Error handling middleware
 ✅ CORS configuration for cross-origin requests
-
+POST /api/auth/register 
 # Clone the repository
 
 ```
@@ -62,3 +62,16 @@ npm run dev
 
 # Run in production mode
 npm start
+
+## Api structure to test
+Base URL : http://localhost:9000/app
+Register User :POST /auth/register
+Login User :POST /auth/login
+Get user : GET /auth/me
+Logout user : POST /auth/logout
+GetallgigsGET /gigs/allgigs/?title=""
+getallgigsbytitle GET /gigs/allgigs/?title="title"
+uploadgig  POST /gigs
+createbid POST /bids/:gigId
+fecthallbids GET /bids/:gigId
+hireabid PATCH /bids/:bidId/hire
