@@ -1,8 +1,15 @@
 import { Router } from "express";
-import { checkAuth } from "../middleware/auth.middleware.js";
-import { GigUpload, Allgigs } from "../controllers/gig.controller.js";
+import { authorizeRoles, checkAuth } from "../middleware/auth.middleware.js";
+import { GigUpload, Allgigs, deleteGig } from "../controllers/gig.controller.js";
+import { apiLimiter } from "../middleware/rate.limiter.js";
 const router = Router();
 
-router.route("/").post(checkAuth, GigUpload);
-router.route("/allgigs").get(checkAuth, Allgigs);
+router.route("/").post(apiLimiter,checkAuth,authorizeRoles("owner"), GigUpload);
+router.route("/allgigs").get(apiLimiter,checkAuth, Allgigs);
+router.delete(
+  "/:gigId",
+  checkAuth,
+  authorizeRoles("owner"),
+  deleteGig
+);
 export default router;

@@ -8,8 +8,26 @@ import { connectedUsers } from "../socket/connectedUsers.js";
 export const postbid = asynchandler(async (req, res) => {
   const { gigId } = req.params;
   const { message, price } = req.body;
+   
 
-  const gig = await Gig.findById({ _id: gigId });
+  if (!mongoose.Types.ObjectId.isValid(gigId)) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Invalid gig ID"));
+  }
+  
+  if (!price || isNaN(price) || price <= 0) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Invalid price"));
+  }
+
+  const gig = await Gig.findById(gigId);
+  if (gig.isDeleted) {
+  return res
+    .status(400)
+    .json(new ApiResponse(400, "Gig is no longer available"));
+}
 
   if (!gig) {
     return res.status(404).json(new ApiResponse(404, "Gig not found"));
@@ -21,64 +39,84 @@ export const postbid = asynchandler(async (req, res) => {
       .json(new ApiResponse(400, "Gig is not open for bidding"));
   }
 
-  if (gig.ownerid.toString() === req.user.id.toString()) {
+  
+  if (gig.ownerid.toString() === req.user._id.toString()) {
     return res
       .status(400)
-      .json(new ApiResponse(400, "You cannot bid on your own gig"));
+      .json(new ApiResponse(400, "Cannot bid on your own gig"));
   }
 
   const bid = await Bid.create({
     gigid: gigId,
     message,
-    status: "pending",
     price,
-    freelancerid: req.user.id,
+    status: "pending",
+    freelancerid: req.user._id,
   });
 
-  if (!bid) {
-    return res.status(500).json(new ApiResponse(500, "Error creating bid"));
-  }
-
-  await bid.save({ validateBeforeSave: false });
-  await req.user.bids.push(bid._id);
+  
+  req.user.bids?.push(bid._id);
   await req.user.save({ validateBeforeSave: false });
-  res.status(201).json(new ApiResponse(201, "Bid placed successfully", bid));
-});
 
+  return res
+    .status(201)
+    .json(new ApiResponse(201, "Bid placed successfully", bid));
+});
 export const acceptbid = asynchandler(async (req, res) => {
   const { bidId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(bidId)) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Invalid bid ID"));
+  }
 
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const bid = await Bid.findOne({ _id: bidId, status: "pending" }, null, {
-      session,
-    });
+    const bid = await Bid.findOne(
+      { _id: bidId, status: "pending" },
+      null,
+      { session }
+    );
 
     if (!bid) {
-      return res
-        .status(400)
-        .json(new ApiResponse(400, "Bid not found or already processed"));
+      throw new Error("Bid not found or already processed");
     }
 
-    const gig = await Gig.findOne({ _id: bid.gigid, status: "open" }, null, {
-      session,
-    });
+    const gig = await Gig.findOne(
+      { _id: bid.gigid, status: "open" },
+      null,
+      { session }
+    );
+
+    if (gig.isDeleted) {
+  return res
+    .status(400)
+    .json(new ApiResponse(400, "Gig is no longer available"));
+}
 
     if (!gig) {
-      return res
-        .status(400)
-        .json(new ApiResponse(400, "Gig not open or already hired"));
+      throw new Error("Gig not open or already assigned");
     }
+   
+   
+    if (gig.ownerid.toString() !== req.user._id.toString()) {
+      throw new Error("Not authorized to accept this bid");
+    }
+
 
     gig.status = "assigned";
     gig.hired = bid.freelancerid;
     gig.acceptbid = bid._id;
-    await gig.save({ session, validateBeforeSave: false });
 
+  
     bid.status = "hired";
+
+    await gig.save({ session, validateBeforeSave: false });
     await bid.save({ session, validateBeforeSave: false });
+
 
     await Bid.updateMany(
       {
@@ -87,45 +125,113 @@ export const acceptbid = asynchandler(async (req, res) => {
         status: "pending",
       },
       { status: "rejected" },
-      { session },
+      { session }
     );
 
     await session.commitTransaction();
 
+  
     const io = req.app.get("io");
     const freelancerId = bid.freelancerid.toString();
     const freelancerSocketId = connectedUsers.get(freelancerId);
+
     if (freelancerSocketId) {
       io.to(freelancerSocketId).emit("hired", {
-        message: `Congratulations! You have been hired for "${gig.title}"`,
+        message: `You have been hired for "${gig.title}"`,
       });
-      console.log(`Notification sent to freelancer ${freelancerId}`);
-    } else {
-      console.log(`Freelancer ${freelancerId} is not currently online`);
     }
 
-    res.status(200).json(
-      new ApiResponse(200, "freelancer hired successfully", {
-        freelancerNotified: !!freelancerSocketId,
-      }),
+    return res.status(200).json(
+      new ApiResponse(200, "Freelancer hired successfully", {
+        notified: !!freelancerSocketId,
+      })
     );
   } catch (error) {
     await session.abortTransaction();
-    session.endSession();
 
-    res
-      .status(409)
-      .json(new ApiResponse(409, error.message || "Bid acceptance failed"));
+    return res
+      .status(400)
+      .json(new ApiResponse(400, error.message));
   } finally {
-    session.endSession();
+    session.endSession(); 
   }
 });
 
 export const fetchallbids = asynchandler(async (req, res) => {
   const { gigId } = req.params;
-  const bids = await Bid.find({ gigid: gigId }).populate("freelancerid");
+
+  if (!mongoose.Types.ObjectId.isValid(gigId)) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Invalid gig ID"));
+  }
+
+  const gig = await Gig.findById(gigId);
+
+  if (!gig) {
+    return res.status(404).json(new ApiResponse(404, "Gig not found"));
+  }
+
+
+  if (gig.ownerid.toString() !== req.user._id.toString()) {
+    return res
+      .status(403)
+      .json(new ApiResponse(403, "Not authorized"));
+  }
+
+  const bids = await Bid.find({ gigid: gigId })
+    .populate("freelancerid", "name email");
 
   return res
     .status(200)
     .json(new ApiResponse(200, "Bids fetched successfully", bids));
+});
+
+export const updateBid = asynchandler(async (req, res) => {
+  const { bidId } = req.params;
+  const { message, price } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(bidId)) {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Invalid bid ID"));
+  }
+
+  const bid = await Bid.findById(bidId);
+
+  if (!bid) {
+    return res.status(404).json(new ApiResponse(404, "Bid not found"));
+  }
+
+
+  if (bid.freelancerid.toString() !== req.user._id.toString()) {
+    return res
+      .status(403)
+      .json(new ApiResponse(403, "Not authorized to update this bid"));
+  }
+
+
+  if (bid.status !== "pending") {
+    return res
+      .status(400)
+      .json(new ApiResponse(400, "Only pending bids can be updated"));
+  }
+
+
+  if (message !== undefined) bid.message = message;
+
+  if (price !== undefined) {
+    if (isNaN(price) || price <= 0) {
+      return res
+        .status(400)
+        .json(new ApiResponse(400, "Invalid price"));
+    }
+    bid.price = price;
+  }
+
+  await bid.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, "Bid updated successfully", bid));
 });

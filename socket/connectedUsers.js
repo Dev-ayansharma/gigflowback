@@ -1,7 +1,7 @@
 export const connectedUsers = new Map();
 
 export const addUser = (userId, socketId) => {
-  connectedUsers.set(userId, socketId);
+  connectedUsers.set(userId.toString(), socketId);
 };
 
 export const removeUserBySocket = (socketId) => {

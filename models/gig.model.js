@@ -35,6 +35,17 @@ const GigSchema = new Schema({
     ref: "Bid",
     default: null,
   },
+  isDeleted: {
+  type: Boolean,
+  default: false,
+},
+deletedAt: {
+  type: Date,
+  default: null,
+},
 });
-
+GigSchema.pre(/^find/, function (next) {
+  this.where({ isDeleted: false });
+  next();
+});
 export const Gig = mongoose.model("Gig", GigSchema);
