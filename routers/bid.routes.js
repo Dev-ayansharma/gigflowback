@@ -12,16 +12,103 @@ import { apiLimiter } from "../middleware/rate.limiter.js";
 
 const router = Router();
 
+/**
+ * @swagger
+ * /bids/{gigId}:
+ *   post:
+ *     summary: Create a bid
+ *     tags: [Bids]
+ *     parameters:
+ *       - in: path
+ *         name: gigId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *     responses:
+ *       201:
+ *         description: Bid created successfully
+ */
+router.route("/:gigId",).post(apiLimiter,checkAuth, authorizeRoles("client"), postbid);
 
-router.post("/:gigId",apiLimiter, checkAuth, authorizeRoles("client"), postbid);
 
 
-router.get("/:gigId", checkAuth, authorizeRoles("owner"), fetchallbids);
+/**
+ * @swagger
+ * /bids/{gigId}:
+ *   get:
+ *     summary: Get all bids for a gig (Owner only)
+ *     tags: [Bids]
+ *     parameters:
+ *       - in: path
+ *         name: gigId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Bids fetched successfully
+ */
 
+router.route("/:gigId").get(apiLimiter,checkAuth, authorizeRoles("owner"), fetchallbids);
 
-router.patch("/:bidId/hire", apiLimiter,checkAuth, authorizeRoles("owner"), acceptbid);
-router.patch(
-  "/:bidId",
+/**
+ * @swagger
+ * /bids/{bidId}/hire:
+ *   patch:
+ *     summary: Accept a bid (Owner only)
+ *     tags: [Bids]
+ *     parameters:
+ *       - in: path
+ *         name: bidId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Bid accepted successfully
+ */
+router.route("/:bidId/hire").patch(apiLimiter,checkAuth, authorizeRoles("owner"), acceptbid);
+
+/**
+ * @swagger
+ * /bids/{bidId}:
+ *   patch:
+ *     summary: Update a bid (Client only)
+ *     tags: [Bids]
+ *     parameters:
+ *       - in: path
+ *         name: bidId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Bid updated successfully
+ */
+router.route("/:bidId").patch(
+  apiLimiter,
   checkAuth,
   authorizeRoles("client"),
   updateBid

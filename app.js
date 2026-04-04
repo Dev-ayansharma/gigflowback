@@ -2,6 +2,9 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import cookieParser from "cookie-parser";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./swagger.js";
+
 
 dotenv.config();
 
@@ -31,7 +34,7 @@ app.use("/app/auth", userRoutes);
 app.use("/app/gigs", gigRoutes);
 app.use("/app/bids", bidRoutes);
 
-
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "OK" });
