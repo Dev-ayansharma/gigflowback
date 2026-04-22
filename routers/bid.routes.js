@@ -6,7 +6,7 @@ import {
   postbid,
   fetchallbids,
   acceptbid,
-  updateBid,
+
 } from "../controllers/bid.controller.js";
 import { apiLimiter } from "../middleware/rate.limiter.js";
 
@@ -80,38 +80,6 @@ router.route("/:gigId").get(apiLimiter,checkAuth, authorizeRoles("owner"), fetch
  */
 router.route("/:bidId/hire").patch(apiLimiter,checkAuth, authorizeRoles("owner"), acceptbid);
 
-/**
- * @swagger
- * /bids/{bidId}:
- *   patch:
- *     summary: Update a bid (Client only)
- *     tags: [Bids]
- *     parameters:
- *       - in: path
- *         name: bidId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: false
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               message:
- *                 type: string
- *               price:
- *                 type: number
- *     responses:
- *       200:
- *         description: Bid updated successfully
- */
-router.route("/:bidId").patch(
-  apiLimiter,
-  checkAuth,
-  authorizeRoles("client"),
-  updateBid
-);
+
 
 export default router;
