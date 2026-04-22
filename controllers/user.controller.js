@@ -5,8 +5,10 @@ import { registerSchema, loginSchema } from "../validators/user.validator.js";
 
 // 🔹 CREATE USER
 export const createUser = asynchandler(async (req, res) => {
+
   const parsed = registerSchema.safeParse(req.body);
 
+ 
   if (!parsed.success) {
     return res
       .status(400)
